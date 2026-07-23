@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Macro Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0D141C;
+    --panel: #131D28;
+    --line: #24313F;
+    --ink: #E8EDF2;
+    --muted: #7E92A4;
+    --brass: #DFAE63;
+    --up: #55C795;
+    --down: #E26E7C;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    min-height: 100vh;
+    padding: 20px clamp(14px, 3vw, 40px) 40px;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 24px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 14px; margin-bottom: 22px;
+  }
+  h1 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 700; font-size: clamp(20px, 3vw, 26px);
+    letter-spacing: 0.01em;
+  }
+  .clocks { display: flex; gap: 18px; margin-left: auto; flex-wrap: wrap; }
+  .clock { color: var(--muted); font-size: 11px; }
+  .clock b { color: var(--ink); font-weight: 500; margin-left: 6px; }
+  .grid {
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 16px 18px 14px;
+  }
+  .eyebrow {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 500; font-size: 12px; letter-spacing: 0.14em;
+    text-transform: uppercase; margin-bottom: 12px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--line);
+  }
+  .c-eu { color: #8FA8E8; } .c-au { color: #E0975E; }
+  .c-us { color: #8FBCD9; } .c-fx { color: #A8B8C6; } .c-en { color: #D6B26E; }
+  .hero { margin: 4px 0 14px; }
+  .hero .big {
+    font-size: 34px; font-weight: 600; color: var(--brass);
+    font-variant-numeric: tabular-nums; line-height: 1.1;
+  }
+  .hero .cap { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px; padding: 5px 0;
+  }
+  .row + .row { border-top: 1px dotted #1C2833; }
+  .lbl { color: var(--muted); font-size: 11.5px; }
+  .val { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sub { color: var(--muted); font-size: 10px; text-align: right; }
+  .chip { font-size: 10.5px; font-weight: 500; margin-left: 6px; }
+  .up { color: var(--up); } .down { color: var(--down); }
+  .section { color: var(--muted); font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; margin: 12px 0 2px; }
+  .path { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  .path td { padding: 3px 0; font-size: 12px; border-top: 1px dotted #1C2833; }
+  .path td:last-child { text-align: right; font-weight: 600;
+    font-variant-numeric: tabular-nums; }
+  footer {
+    margin-top: 24px; color: var(--muted); font-size: 10.5px;
+    display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center;
+  }
+  button {
+    background: none; border: 1px solid var(--line); color: var(--ink);
+    font-family: inherit; font-size: 11px; padding: 5px 14px;
+    border-radius: 4px; cursor: pointer;
+  }
+  button:hover { border-color: var(--brass); color: var(--brass); }
+  button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  .val, .hero .big { transition: opacity 0.3s; }
+  .loading .val, .loading .big { opacity: 0.35; }
+  @media (prefers-reduced-motion: reduce) { .val, .hero .big { transition: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Macro Monitor</h1>
+  <div class="clocks">
+    <span class="clock">SYD<b id="clk-syd">--:--</b></span>
+    <span class="clock">PAR<b id="clk-par">--:--</b></span>
+    <span class="clock">NYC<b id="clk-nyc">--:--</b></span>
+  </div>
+</header>
+
+<div class="grid" id="grid">
+
+  <div class="card" id="card-eu">
+    <div class="eyebrow c-eu">France &amp; Europe</div>
+    <div class="hero">
+      <div class="big" id="ecb-dfr">—</div>
+      <div class="cap">ECB deposit facility rate · sets policy for France</div>
+    </div>
+    <div class="row"><span class="lbl">ECB main refinancing rate</span><span class="val" id="ecb-mro">—</span></div>
+    <div class="row"><span class="lbl">France HICP inflation (yoy)</span><span><span class="val" id="hicp-fr">—</span><div class="sub" id="hicp-fr-p"></div></span></div>
+    <div class="row"><span class="lbl">Euro area HICP inflation (yoy)</span><span><span class="val" id="hicp-ea">—</span><div class="sub" id="hicp-ea-p"></div></span></div>
+    <div class="row"><span class="lbl">France GDP forecast 2026</span><span><span class="val" id="gdp-fr">—</span><div class="sub" id="gdp-fr-s"></div></span></div>
+    <div class="row"><span class="lbl">Euro area GDP forecast 2026</span><span><span class="val" id="gdp-ea">—</span><div class="sub" id="gdp-ea-s"></div></span></div>
+  </div>
+
+  <div class="card" id="card-au">
+    <div class="eyebrow c-au">Australia</div>
+    <div class="hero">
+      <div class="big" id="rba-cash">—</div>
+      <div class="cap">RBA cash rate target</div>
+    </div>
+    <div class="row"><span class="lbl">CPI inflation (year-ended)</span><span><span class="val" id="au-cpi">—</span><div class="sub" id="au-cpi-p"></div></span></div>
+    <div class="row"><span class="lbl">Trimmed mean (year-ended)</span><span><span class="val" id="au-tm">—</span><div class="sub" id="au-tm-p"></div></span></div>
+    <div class="row"><span class="lbl">GDP forecast 2026</span><span><span class="val" id="gdp-au">—</span><div class="sub" id="gdp-au-s"></div></span></div>
+  </div>
+
+  <div class="card" id="card-us">
+    <div class="eyebrow c-us">United States</div>
+    <div class="hero">
+      <div class="big" id="fed-rate">—</div>
+      <div class="cap">Fed funds target range</div>
+    </div>
+    <div class="row"><span class="lbl">CPI inflation (yoy)</span><span><span class="val" id="us-cpi">—</span><div class="sub" id="us-cpi-p"></div></span></div>
+    <div class="section">Futures implied policy rate</div>
+    <table class="path" id="fed-path"></table>
+  </div>
+
+  <div class="card" id="card-fx">
+    <div class="eyebrow c-fx">FX</div>
+    <div id="fx-rows"></div>
+  </div>
+
+  <div class="card" id="card-en">
+    <div class="eyebrow c-en">Energy</div>
+    <div class="section" style="margin-top:0">Oil &amp; gas</div>
+    <div id="cmd-rows"></div>
+    <div class="section">Power</div>
+    <div class="row"><span class="lbl">AU NEM spot avg (AUD/MWh)</span><span><span class="val" id="pw-au">—</span><div class="sub" id="pw-au-p"></div></span></div>
+    <div class="row"><span class="lbl">FR day-ahead (EUR/MWh)</span><span><span class="val" id="pw-fr">—</span><div class="sub" id="pw-fr-p"></div></span></div>
+  </div>
+
+</div>
+
+<footer>
+  <span id="refreshed">Loading…</span>
+  <button onclick="loadAll()">Refresh now</button>
+  <span>Spot power shown as live proxy for industrial prices in AU and FR. GDP forecasts are static — edit the config when new projections drop.</span>
+</footer>
+
+<script>
+/* ============================================================
+   CONFIG — edit this block, nothing below it
+   ============================================================ */
+const WORKER_URL = "https://YOUR-WORKER.YOUR-SUBDOMAIN.workers.dev"; // <-- your Cloudflare Worker URL, no trailing slash
+
+// Static GDP forecasts. Update quarterly when new projections are published.
+const GDP_FORECASTS = {
+  fr: { value: "0.5%", source: "Banque de France, Jun 2026" },
+  ea: { value: "0.8%", source: "Eurosystem, Jun 2026" },
+  au: { value: "2.0%", source: "EDIT ME - RBA SoMP May 2026" }, // verify against latest SoMP table
+};
+
+// Fed funds futures contracts (Yahoo tickers). Roll forward each quarter.
+// Implied rate = 100 - price. Month codes: F G H J K M N Q U V X Z = Jan..Dec.
+const FED_FUTURES = [
+  { sym: "ZQU26.CBT", label: "Sep 2026" },
+  { sym: "ZQZ26.CBT", label: "Dec 2026" },
+  { sym: "ZQH27.CBT", label: "Mar 2027" },
+  { sym: "ZQM27.CBT", label: "Jun 2027" },
+];
+
+// FX pairs: Yahoo ticker + display label (quoted as 1 base = x quote)
+const FX_PAIRS = [
+  { sym: "AUDEUR=X", label: "AUD/EUR", dp: 4 },
+  { sym: "USDEUR=X", label: "USD/EUR", dp: 4 },
+  { sym: "USDAUD=X", label: "USD/AUD", dp: 4 },
+  { sym: "GBPEUR=X", label: "GBP/EUR", dp: 4 },
+];
+
+// Commodities: Yahoo ticker + label + unit
+const COMMODITIES = [
+  { sym: "CL=F", label: "WTI crude", unit: "USD/bbl", dp: 2 },
+  { sym: "BZ=F", label: "Brent crude", unit: "USD/bbl", dp: 2 },
+  { sym: "NG=F", label: "Henry Hub gas", unit: "USD/MMBtu", dp: 2 },
+  { sym: "TTF=F", label: "TTF gas", unit: "EUR/MWh", dp: 2 },
+];
+/* ============================================================ */
+
+const $ = (id) => document.getElementById(id);
+const fmt = (v, dp = 2) => (v == null || isNaN(v)) ? "—" : Number(v).toFixed(dp);
+
+async function fetchJ(path) {
+  const r = await fetch(WORKER_URL + path);
+  const d = await r.json();
+  if (d.error) throw new Error(d.error);
+  return d;
+}
+
+function setVal(id, text, subId, subText) {
+  $(id).textContent = text;
+  if (subId && $(subId)) $(subId).textContent = subText || "";
+}
+
+function quoteRow(container, label, q, dp, unit) {
+  const chg = (q.price != null && q.prevClose) ? ((q.price / q.prevClose - 1) * 100) : null;
+  const chipCls = chg == null ? "" : chg >= 0 ? "up" : "down";
+  const chipTxt = chg == null ? "" : (chg >= 0 ? "+" : "") + chg.toFixed(2) + "%";
+  const div = document.createElement("div");
+  div.className = "row";
+  div.innerHTML = `<span class="lbl">${label}${unit ? ` <span class="sub" style="display:inline">${unit}</span>` : ""}</span>
+    <span><span class="val">${fmt(q.price, dp)}</span><span class="chip ${chipCls}">${chipTxt}</span></span>`;
+  container.appendChild(div);
+}
+
+function renderStatics() {
+  setVal("gdp-fr", GDP_FORECASTS.fr.value, "gdp-fr-s", GDP_FORECASTS.fr.source);
+  setVal("gdp-ea", GDP_FORECASTS.ea.value, "gdp-ea-s", GDP_FORECASTS.ea.source);
+  setVal("gdp-au", GDP_FORECASTS.au.value, "gdp-au-s", GDP_FORECASTS.au.source);
+}
+
+async function loadEurope() {
+  fetchJ("/ecb/dfr").then(d => setVal("ecb-dfr", fmt(d.latest.value, 2) + "%"))
+    .catch(() => setVal("ecb-dfr", "—"));
+  fetchJ("/ecb/mro").then(d => setVal("ecb-mro", fmt(d.latest.value, 2) + "%"))
+    .catch(() => setVal("ecb-mro", "—"));
+  fetchJ("/ecb/hicp-fr").then(d => setVal("hicp-fr", fmt(d.latest.value, 1) + "%", "hicp-fr-p", d.latest.period))
+    .catch(() => setVal("hicp-fr", "—"));
+  fetchJ("/ecb/hicp-ea").then(d => setVal("hicp-ea", fmt(d.latest.value, 1) + "%", "hicp-ea-p", d.latest.period))
+    .catch(() => setVal("hicp-ea", "—"));
+}
+
+async function loadAustralia() {
+  fetchJ("/rba/cash").then(d => setVal("rba-cash", fmt(d.value, 2) + "%"))
+    .catch(() => setVal("rba-cash", "—"));
+  fetchJ("/rba/cpi").then(d => {
+    if (d.headline) setVal("au-cpi", fmt(d.headline.value, 1) + "%", "au-cpi-p", d.headline.period);
+    if (d.trimmedMean) setVal("au-tm", fmt(d.trimmedMean.value, 1) + "%", "au-tm-p", d.trimmedMean.period);
+  }).catch(() => { setVal("au-cpi", "—"); setVal("au-tm", "—"); });
+}
+
+async function loadUS() {
+  Promise.all([fetchJ("/fred/DFEDTARL"), fetchJ("/fred/DFEDTARU")])
+    .then(([lo, hi]) => setVal("fed-rate", fmt(lo.latest.value, 2) + "–" + fmt(hi.latest.value, 2) + "%"))
+    .catch(() => setVal("fed-rate", "—"));
+
+  fetchJ("/fred/CPIAUCSL").then(d => {
+    const o = d.observations; // desc order, monthly
+    if (o.length >= 13) {
+      const yoy = (parseFloat(o[0].value) / parseFloat(o[12].value) - 1) * 100;
+      setVal("us-cpi", fmt(yoy, 1) + "%", "us-cpi-p", o[0].date.slice(0, 7));
+    }
+  }).catch(() => setVal("us-cpi", "—"));
+
+  const tbl = $("fed-path");
+  tbl.innerHTML = "";
+  for (const c of FED_FUTURES) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td class="lbl">${c.label}</td><td>—</td>`;
+    tbl.appendChild(tr);
+    fetchJ("/yahoo/" + encodeURIComponent(c.sym))
+      .then(q => { tr.lastElementChild.textContent = fmt(100 - q.price, 2) + "%"; })
+      .catch(() => {});
+  }
+}
+
+async function loadFX() {
+  const box = $("fx-rows");
+  box.innerHTML = "";
+  for (const p of FX_PAIRS) {
+    try {
+      const q = await fetchJ("/yahoo/" + encodeURIComponent(p.sym));
+      quoteRow(box, p.label, q, p.dp);
+    } catch {
+      quoteRow(box, p.label, { price: null }, p.dp);
+    }
+  }
+}
+
+async function loadEnergy() {
+  const box = $("cmd-rows");
+  box.innerHTML = "";
+  for (const c of COMMODITIES) {
+    try {
+      const q = await fetchJ("/yahoo/" + encodeURIComponent(c.sym));
+      quoteRow(box, c.label, q, c.dp, c.unit);
+    } catch {
+      quoteRow(box, c.label, { price: null }, c.dp, c.unit);
+    }
+  }
+  fetchJ("/aemo").then(d =>
+    setVal("pw-au", fmt(d.avg, 0), "pw-au-p", "5-min spot, all regions")
+  ).catch(() => setVal("pw-au", "—"));
+  fetchJ("/frpower").then(d =>
+    setVal("pw-fr", fmt(d.latest, 0), "pw-fr-p", "day avg " + fmt(d.avg, 0))
+  ).catch(() => setVal("pw-fr", "—"));
+}
+
+function loadAll() {
+  document.body.classList.add("loading");
+  renderStatics();
+  Promise.allSettled([loadEurope(), loadAustralia(), loadUS(), loadFX(), loadEnergy()])
+    .then(() => {
+      document.body.classList.remove("loading");
+      $("refreshed").textContent = "Refreshed " + new Date().toLocaleTimeString();
+    });
+}
+
+function tickClocks() {
+  const opts = { hour: "2-digit", minute: "2-digit", hour12: false };
+  $("clk-syd").textContent = new Date().toLocaleTimeString("en-AU", { ...opts, timeZone: "Australia/Sydney" });
+  $("clk-par").textContent = new Date().toLocaleTimeString("fr-FR", { ...opts, timeZone: "Europe/Paris" });
+  $("clk-nyc").textContent = new Date().toLocaleTimeString("en-US", { ...opts, timeZone: "America/New_York" });
+}
+setInterval(tickClocks, 30000);
+tickClocks();
+
+loadAll();
+setInterval(loadAll, 10 * 60 * 1000); // auto-refresh every 10 minutes
+</script>
+</body>
+</html>
