@@ -136,7 +136,7 @@
     <div class="eyebrow c-us">United States</div>
     <div class="hero">
       <div class="big" id="fed-rate">—</div>
-      <div class="cap">Fed funds target range</div>
+      <div class="cap">Effective fed funds rate (EFFR)</div>
     </div>
     <div class="row"><span class="lbl">CPI inflation (yoy)</span><span><span class="val" id="us-cpi">—</span><div class="sub" id="us-cpi-p"></div></span></div>
     <div class="section">Futures implied policy rate</div>
@@ -190,8 +190,8 @@ const FED_FUTURES = [
 // FX pairs: Yahoo ticker + display label (quoted as 1 base = x quote)
 const FX_PAIRS = [
   { sym: "AUDEUR=X", label: "AUD/EUR", dp: 4 },
-  { sym: "USDEUR=X", label: "USD/EUR", dp: 4 },
-  { sym: "USDAUD=X", label: "USD/AUD", dp: 4 },
+  { sym: "EURUSD=X", label: "EUR/USD", dp: 4 },
+  { sym: "AUDUSD=X", label: "AUD/USD", dp: 4 },
   { sym: "GBPEUR=X", label: "GBP/EUR", dp: 4 },
 ];
 
@@ -257,17 +257,13 @@ async function loadAustralia() {
 }
 
 async function loadUS() {
-  Promise.all([fetchJ("/fred/DFEDTARL"), fetchJ("/fred/DFEDTARU")])
-    .then(([lo, hi]) => setVal("fed-rate", fmt(lo.latest.value, 2) + "–" + fmt(hi.latest.value, 2) + "%"))
+  fetchJ("/fedfunds")
+    .then(d => setVal("fed-rate", fmt(d.rate, 2) + "%"))
     .catch(() => setVal("fed-rate", "—"));
 
-  fetchJ("/fred/CPIAUCSL").then(d => {
-    const o = d.observations; // desc order, monthly
-    if (o.length >= 13) {
-      const yoy = (parseFloat(o[0].value) / parseFloat(o[12].value) - 1) * 100;
-      setVal("us-cpi", fmt(yoy, 1) + "%", "us-cpi-p", o[0].date.slice(0, 7));
-    }
-  }).catch(() => setVal("us-cpi", "—"));
+  fetchJ("/uscpi")
+    .then(d => setVal("us-cpi", fmt(d.yoy, 1) + "%", "us-cpi-p", d.period))
+    .catch(() => setVal("us-cpi", "—"));
 
   const tbl = $("fed-path");
   tbl.innerHTML = "";
@@ -337,3 +333,4 @@ setInterval(loadAll, 10 * 60 * 1000); // auto-refresh every 10 minutes
 </script>
 </body>
 </html>
+
