@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0D141C; 
+    --bg: #0D141C;
     --panel: #131D28;
     --line: #24313F;
     --ink: #E8EDF2;
@@ -115,6 +115,7 @@
       <div class="cap">ECB deposit facility rate · sets policy for France</div>
     </div>
     <div class="row"><span class="lbl">ECB main refinancing rate</span><span class="val" id="ecb-mro">—</span></div>
+    <div class="row"><span class="lbl">OAT 10Y yield</span><span><span class="val" id="oat10y">—</span><span class="chip" id="oat10y-chg"></span><div class="sub" id="oat10y-p"></div></span></div>
     <div class="row"><span class="lbl">France HICP inflation (yoy)</span><span><span class="val" id="hicp-fr">—</span><div class="sub" id="hicp-fr-p"></div></span></div>
     <div class="row"><span class="lbl">Euro area HICP inflation (yoy)</span><span><span class="val" id="hicp-ea">—</span><div class="sub" id="hicp-ea-p"></div></span></div>
     <div class="row"><span class="lbl">France GDP forecast 2026</span><span><span class="val" id="gdp-fr">—</span><div class="sub" id="gdp-fr-s"></div></span></div>
@@ -243,6 +244,15 @@ async function loadEurope() {
     .catch(() => setVal("ecb-dfr", "—"));
   fetchJ("/ecb/mro").then(d => setVal("ecb-mro", fmt(d.latest.value, 2) + "%"))
     .catch(() => setVal("ecb-mro", "—"));
+  fetchJ("/oat10y").then(d => {
+    setVal("oat10y", fmt(d.value, 2) + "%", "oat10y-p", d.period);
+    if (d.previous != null) {
+      const bp = (d.value - d.previous) * 100;
+      const el = $("oat10y-chg");
+      el.textContent = (bp >= 0 ? "+" : "") + bp.toFixed(0) + "bp";
+      el.className = "chip " + (bp >= 0 ? "up" : "down");
+    }
+  }).catch(() => setVal("oat10y", "—"));
   fetchJ("/ecb/hicp-fr").then(d => setVal("hicp-fr", fmt(d.latest.value, 1) + "%", "hicp-fr-p", d.latest.period))
     .catch(() => setVal("hicp-fr", "—"));
   fetchJ("/ecb/hicp-ea").then(d => setVal("hicp-ea", fmt(d.latest.value, 1) + "%", "hicp-ea-p", d.latest.period))
@@ -353,4 +363,5 @@ setInterval(loadAll, 10 * 60 * 1000); // auto-refresh every 10 minutes
 </script>
 </body>
 </html>
+
 
