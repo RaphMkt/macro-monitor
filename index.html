@@ -195,12 +195,14 @@ const FX_PAIRS = [
   { sym: "GBPEUR=X", label: "GBP/EUR", dp: 4 },
 ];
 
-// Commodities: Yahoo ticker + label + unit
+// Commodities: Yahoo ticker + label + unit. "convert" applies a unit conversion:
+//   hh-eurgj  = USD/MMBtu -> EUR/GJ (uses live EUR/USD; 1 MMBtu = 1.055056 GJ)
+//   ttf-eurgj = EUR/MWh   -> EUR/GJ (1 MWh = 3.6 GJ)
 const COMMODITIES = [
   { sym: "CL=F", label: "WTI crude", unit: "USD/bbl", dp: 2 },
   { sym: "BZ=F", label: "Brent crude", unit: "USD/bbl", dp: 2 },
-  { sym: "NG=F", label: "Henry Hub gas", unit: "USD/MMBtu", dp: 2 },
-  { sym: "TTF=F", label: "TTF gas", unit: "EUR/MWh", dp: 2 },
+  { sym: "NG=F", label: "Henry Hub gas", unit: "EUR/GJ", dp: 2, convert: "hh-eurgj" },
+  { sym: "TTF=F", label: "TTF gas", unit: "EUR/GJ", dp: 2, convert: "ttf-eurgj" },
 ];
 /* ============================================================ */
 
@@ -290,12 +292,30 @@ async function loadFX() {
   }
 }
 
+const GJ_PER_MMBTU = 1.055056;
+const GJ_PER_MWH = 3.6;
+
+function convertQuote(q, mode, eurusd) {
+  const f = (v) => {
+    if (v == null) return null;
+    if (mode === "hh-eurgj") return eurusd ? v / GJ_PER_MMBTU / eurusd : null;
+    if (mode === "ttf-eurgj") return v / GJ_PER_MWH;
+    return v;
+  };
+  return { ...q, price: f(q.price), prevClose: f(q.prevClose) };
+}
+
 async function loadEnergy() {
   const box = $("cmd-rows");
   box.innerHTML = "";
+  let eurusd = null;
+  try {
+    eurusd = (await fetchJ("/yahoo/" + encodeURIComponent("EURUSD=X"))).price;
+  } catch { /* Henry Hub conversion will show a dash */ }
   for (const c of COMMODITIES) {
     try {
-      const q = await fetchJ("/yahoo/" + encodeURIComponent(c.sym));
+      let q = await fetchJ("/yahoo/" + encodeURIComponent(c.sym));
+      if (c.convert) q = convertQuote(q, c.convert, eurusd);
       quoteRow(box, c.label, q, c.dp, c.unit);
     } catch {
       quoteRow(box, c.label, { price: null }, c.dp, c.unit);
@@ -333,3 +353,4 @@ setInterval(loadAll, 10 * 60 * 1000); // auto-refresh every 10 minutes
 </script>
 </body>
 </html>
+
